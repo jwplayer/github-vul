@@ -161,8 +161,16 @@ func (ex *Executor) updateVulnerabilityAlerts(action string, repositories []repo
 	return numUpdated, nil
 }
 
-func (ex *Executor) updateSecurityFixes(repositories []repository) (int, error) {
+func (ex *Executor) updateSecurityFixes(fixes bool, repositories []repository) (int, error) {
 	numUpdated := 0
+
+	var method string
+
+	if fixes {
+		method = "PUT"
+	} else {
+		method = "DELETE"
+	}
 
 	for _, repo := range repositories {
 		if ex.dry {
@@ -171,7 +179,7 @@ func (ex *Executor) updateSecurityFixes(repositories []repository) (int, error) 
 		}
 
 		// https://developer.github.com/v3/repos/#enable-vulnerability-alerts
-		_, err := ex.makeRequest("PUT", "repos/"+repo.Owner.Login+"/"+repo.Name+"/automated-security-fixes", "application/vnd.github.london-preview+json")
+		_, err := ex.makeRequest(method, "repos/"+repo.Owner.Login+"/"+repo.Name+"/automated-security-fixes", "application/vnd.github.london-preview+json")
 		if err != nil {
 			return numUpdated, fmt.Errorf("failed to update automated security fixes alerts for repo %s: %w\n", repo.Name, err)
 		}
@@ -265,14 +273,14 @@ func Run(org string, action string, fixes bool, repo string, ex Executor) error 
 		return err
 	}
 
-	fmt.Printf("enabled alerts for %d repositories\n", numAlerts)
+	fmt.Printf("updated alerts for %d repositories\n", numAlerts)
 
-	numFixes, err := ex.updateSecurityFixes(repositories)
+	numFixes, err := ex.updateSecurityFixes(fixes, repositories)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("enabled alerts for %d repositories\n", numFixes)
+	fmt.Printf("updated security fixes for %d repositories\n", numFixes)
 
 	return nil
 }

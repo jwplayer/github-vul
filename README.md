@@ -5,11 +5,11 @@ Enable GitHub vulnerability alerts for all repositories.
 ## Usage
 
 ```bash
-# default usage: enable for all repositores
-github-vul -org=myorg -action=enable
+# default usage: enable for all repositories with automated security fixes
+github-vul -org=myorg -action=enable -fixes=true
 
-# enable for single respostiory
-github-vul -org=myorg -action=enable -repo=myrepo
+# enable for single respository
+github-vul -org=myorg -action=enable -fixes=true -repo=myrepo
 
 github-vul -help
 

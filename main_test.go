@@ -124,7 +124,7 @@ func TestUpdateVulnerabilityAlerts(t *testing.T) {
 
 func TestUpdateSecurityFixes(t *testing.T) {
 	ex := NewExecutor("token", false)
-	n, err := ex.updateSecurityFixes([]repository{
+	n, err := ex.updateSecurityFixes(true, []repository{
 		repository{
 			Name: "repo",
 			Owner: owner{
@@ -365,12 +365,12 @@ func TestRun(t *testing.T) {
 	ex.client = client
 	ex.http = true
 
-	err := Run("org", "enable", false, "", *ex)
+	err := Run("org", "enable", true, "", *ex)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
 
-	err = Run("org", "enable", false, "repo1", *ex)
+	err = Run("org", "enable", true, "repo1", *ex)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -388,7 +388,7 @@ func TestRun(t *testing.T) {
 		}
 	}
 
-	err = Run("", "", false, "", *ex)
+	err = Run("", "", true, "", *ex)
 
 	if err == nil {
 		t.Errorf("Expected error on missing org")
