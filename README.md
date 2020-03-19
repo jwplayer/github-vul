@@ -17,6 +17,8 @@ github-vul -help
       Action to perform [enable|disable] (GITHUB_VUL_ACTION)
   -dry
       Dry run (GITHUB_VUL_DRY)
+  -fixes
+      Enable automated security fixes (GITHUB_VUL_FIXES)
   -org string
       GitHub org (GITHUB_VUL_ORG)
   -repo string
