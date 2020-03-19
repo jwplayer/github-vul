@@ -1,6 +1,6 @@
 # GitHub Vul
 
-true GitHub vulnerability alerts for all repositories.
+Enable GitHub vulnerability alerts for all repositories.
 
 ## Usage
 
