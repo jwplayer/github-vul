@@ -212,71 +212,6 @@ func TestListRepositories(t *testing.T) {
 	}
 }
 
-func TestCheckEnabled(t *testing.T) {
-	expectedRequests := make([]string, 0, 1)
-
-	responses := []mockHTTPResponse{
-		mockHTTPResponse{
-			method:     "GET",
-			URL:        "/repos/org/repo1/vulnerability-alerts",
-			body:       "",
-			StatusCode: 204,
-		},
-		mockHTTPResponse{
-			method:     "GET",
-			URL:        "/repos/org/repo2/vulnerability-alerts",
-			body:       "",
-			StatusCode: 404,
-		},
-	}
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		res := getResponse(responses, r.Method, r.URL.String())
-
-		if res.method == "" {
-			t.Fatalf(r.URL.String())
-		}
-
-		expectedRequests = append(expectedRequests, res.String())
-
-		w.WriteHeader(res.StatusCode)
-		_, err := w.Write([]byte(res.body))
-
-		if err != nil {
-			t.Errorf(err.Error())
-		}
-	})
-	client, teardown := testClient(handler)
-	defer teardown()
-
-	ex := NewExecutor("token", false)
-	ex.client = client
-	ex.http = true
-
-	isEnabled, _ := ex.checkEnabled(repository{
-		Name: "repo1",
-		Owner: owner{
-			Login: "org",
-		},
-	})
-
-	if !isEnabled {
-		t.Errorf("Expected repo1 to be enabled")
-	}
-
-	isEnabled, _ = ex.checkEnabled(repository{
-		Name: "repo2",
-		Owner: owner{
-			Login: "org",
-		},
-	})
-
-	if isEnabled {
-		t.Errorf("Expected repo2 to not be enabled")
-	}
-
-}
-
 func TestRun(t *testing.T) {
 	expectedRequests := make([]string, 0, 1)
 
@@ -307,16 +242,10 @@ func TestRun(t *testing.T) {
 			StatusCode: 200,
 		},
 		mockHTTPResponse{
-			method:     "GET",
+			method:     "PUT",
 			URL:        "/repos/org/repo1/vulnerability-alerts",
 			body:       "",
 			StatusCode: 204,
-		},
-		mockHTTPResponse{
-			method:     "GET",
-			URL:        "/repos/org/repo2/vulnerability-alerts",
-			body:       "",
-			StatusCode: 404,
 		},
 		mockHTTPResponse{
 			method:     "PUT",

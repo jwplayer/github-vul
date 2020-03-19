@@ -102,20 +102,6 @@ func (ex *Executor) listRepositories(org string) ([]repository, error) {
 	return repositories, nil
 }
 
-func (ex *Executor) checkEnabled(repo repository) (bool, error) {
-	// https://developer.github.com/v3/repos/#true-vulnerability-alerts
-	res, err := ex.makeRequest("GET", "repos/"+repo.Owner.Login+"/"+repo.Name+"/vulnerability-alerts", "application/vnd.github.dorian-preview+json")
-
-	switch res.StatusCode {
-	case 404:
-		return false, nil
-	case 204:
-		return true, nil
-	default:
-		return false, fmt.Errorf("failed to check vulnerability alerts config for repo %s: %w\n", repo.Name, err)
-	}
-}
-
 func (ex *Executor) updateVulnerabilityAlerts(alerts bool, repositories []repository) (int, error) {
 	numUpdated := 0
 
@@ -129,29 +115,22 @@ func (ex *Executor) updateVulnerabilityAlerts(alerts bool, repositories []reposi
 
 	for _, repo := range repositories {
 		if repo.Archived {
-			fmt.Printf("skipping archived repository %s\n", repo.Name)
-			continue
-		}
-
-		isEnabled, err := ex.checkEnabled(repo)
-		performUpdate := (!isEnabled && alerts) || (isEnabled && !alerts)
-		if !performUpdate {
-			fmt.Printf("skipping repository %s\n", repo.Name)
+			fmt.Printf("skipping repository %s: is archived\n", repo.Name)
 			continue
 		}
 
 		if ex.dry {
-			fmt.Printf("dry run: will update vulnerability alerts for repository %s\n", repo.Name)
+			fmt.Printf("dry run\twill update vulnerability alerts for repository %s\n", repo.Name)
 			continue
 		}
 
 		// https://developer.github.com/v3/repos/#enable-vulnerability-alerts
-		_, err = ex.makeRequest(method, "repos/"+repo.Owner.Login+"/"+repo.Name+"/vulnerability-alerts", "application/vnd.github.dorian-preview+json")
+		_, err := ex.makeRequest(method, "repos/"+repo.Owner.Login+"/"+repo.Name+"/vulnerability-alerts", "application/vnd.github.dorian-preview+json")
 		if err != nil {
 			return numUpdated, fmt.Errorf("failed to update vulnerability alerts for repo %s: %w\n", repo.Name, err)
 		}
 
-		fmt.Printf("updated vulnerability alerts for repository %s\n", repo.Name)
+		fmt.Printf("updated vulnerability alerts for repository\t%s\n", repo.Name)
 
 		numUpdated++
 	}
@@ -171,8 +150,13 @@ func (ex *Executor) updateSecurityFixes(fixes bool, repositories []repository) (
 	}
 
 	for _, repo := range repositories {
+		if repo.Archived {
+			fmt.Printf("skipping repository %s: is archived\n", repo.Name)
+			continue
+		}
+
 		if ex.dry {
-			fmt.Printf("dry run: will update automated security fixes for repository %s\n", repo.Name)
+			fmt.Printf("dry run\twill update automated security fixes for repository %s\n", repo.Name)
 			continue
 		}
 
@@ -182,7 +166,7 @@ func (ex *Executor) updateSecurityFixes(fixes bool, repositories []repository) (
 			return numUpdated, fmt.Errorf("failed to update automated security fixes alerts for repo %s: %w\n", repo.Name, err)
 		}
 
-		fmt.Printf("updated security fixes for repository %s\n", repo.Name)
+		fmt.Printf("updated automated security fixes for repository\t%s\n", repo.Name)
 
 		numUpdated++
 	}
@@ -270,6 +254,8 @@ func Run(org string, alerts bool, fixes bool, repo string, ex Executor) error {
 		}
 	}
 
+	fmt.Printf("updating vulnerability alerts...\n")
+
 	numAlerts, err := ex.updateVulnerabilityAlerts(alerts, repositories)
 	if err != nil {
 		return err
@@ -278,6 +264,8 @@ func Run(org string, alerts bool, fixes bool, repo string, ex Executor) error {
 	fmt.Printf("updated alerts for %d repositories\n", numAlerts)
 
 	if alerts {
+		fmt.Printf("updating security fixes...\n")
+
 		numFixes, err := ex.updateSecurityFixes(fixes, repositories)
 		if err != nil {
 			return err
