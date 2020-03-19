@@ -11,8 +11,11 @@ github-vul -org=myorg -alerts=true -fixes=true
 # enable for single respository
 github-vul -org=myorg -alerts=true -fixes=true -repo=myrepo
 
-# enable for all repositories but disable security fixes
+# enable for all repositories but disable automated security fixes
 github-vul -org=myorg -alerts=true -fixes=false
+
+# enable for all repositories but do nothing with automated security fixes
+github-vul -org=myorg -alerts=true
 
 
 github-vul -help
@@ -22,11 +25,11 @@ github-vul -help
   -dry
       Dry run (GITHUB_VUL_DRY)
   -fixes
-      Boolean to enable/disable automated security fixes (GITHUB_VUL_FIXES)
+      [Optional] Boolean to enable/disable automated (GITHUB_VUL_FIXES)
   -org string
       GitHub org (GITHUB_VUL_ORG)
   -repo string
-      Optional - Specify a repository
+      [Optional] Specify a repository
   -token string
       GitHub API token (GITHUB_VUL_TOKEN)
 ```

@@ -99,7 +99,7 @@ func TestConfig(t *testing.T) {
 }
 
 func TestUpdateVulnerabilityAlerts(t *testing.T) {
-	ex := NewExecutor("token", false)
+	ex := NewExecutor("token", false, false)
 	n, err := ex.updateVulnerabilityAlerts(true, []repository{
 		repository{
 			Name: "repo",
@@ -119,7 +119,7 @@ func TestUpdateVulnerabilityAlerts(t *testing.T) {
 }
 
 func TestUpdateSecurityFixes(t *testing.T) {
-	ex := NewExecutor("token", false)
+	ex := NewExecutor("token", false, false)
 	n, err := ex.updateSecurityFixes(true, []repository{
 		repository{
 			Name: "repo",
@@ -139,7 +139,7 @@ func TestUpdateSecurityFixes(t *testing.T) {
 }
 
 func TestDryRun(t *testing.T) {
-	ex := NewExecutor("token", true)
+	ex := NewExecutor("token", true, false)
 	n, _ := ex.updateVulnerabilityAlerts(true, []repository{
 		repository{
 			Name: "repo",
@@ -201,7 +201,7 @@ func TestListRepositories(t *testing.T) {
 	client, teardown := testClient(handler)
 	defer teardown()
 
-	ex := NewExecutor("token", false)
+	ex := NewExecutor("token", false, false)
 	ex.client = client
 	ex.http = true
 
@@ -286,7 +286,7 @@ func TestRun(t *testing.T) {
 	client, teardown := testClient(handler)
 	defer teardown()
 
-	ex := NewExecutor("token", false)
+	ex := NewExecutor("token", false, false)
 	ex.client = client
 	ex.http = true
 
