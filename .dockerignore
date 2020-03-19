@@ -1,0 +1,7 @@
+.git
+*_test.go
+coverage
+github-vul*
+LICENSE
+Makefile
+*.md
