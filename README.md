@@ -1,5 +1,7 @@
 # GitHub Vul
 
+https://travis-ci.org/jwplayer/github-vul.svg?branch=master
+
 Enable GitHub vulnerability alerts for all repositories.
 
 ## Usage
