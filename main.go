@@ -1,3 +1,9 @@
+/*
+A CLI to enable vulnerability alerts and automated security fixes for github repositories.
+
+		$ github-vul -org=myorg -alerts=true -fixes=true -token=mytoken
+
+*/
 package main
 
 import (
