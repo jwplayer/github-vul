@@ -1,6 +1,6 @@
 # GitHub Vul
 
-https://travis-ci.org/jwplayer/github-vul.svg?branch=master
+[![Build Status](https://travis-ci.org/jwplayer/github-vul.svg?branch=master)](https://travis-ci.org/jwplayer/github-vul)
 
 Enable GitHub vulnerability alerts for all repositories.
 
