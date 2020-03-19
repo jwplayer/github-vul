@@ -32,18 +32,20 @@ type repository struct {
 
 // Executor provides runtime configuration and facilities
 type Executor struct {
-	client *http.Client
-	token  string
-	http   bool
-	dry    bool
+	client    *http.Client
+	token     string
+	http      bool
+	dry       bool
+	skipFixes bool
 }
 
 // NewExecutor returns a new executor of GitHub operations
-func NewExecutor(token string, dry bool) *Executor {
+func NewExecutor(token string, dry bool, skipFixes bool) *Executor {
 	ex := Executor{
-		client: &http.Client{},
-		token:  token,
-		dry:    dry,
+		client:    &http.Client{},
+		token:     token,
+		dry:       dry,
+		skipFixes: skipFixes,
 	}
 
 	return &ex
@@ -263,7 +265,7 @@ func Run(org string, alerts bool, fixes bool, repo string, ex Executor) error {
 
 	fmt.Printf("updated alerts for %d repositories\n", numAlerts)
 
-	if alerts {
+	if !ex.skipFixes {
 		fmt.Printf("updating security fixes...\n")
 
 		numFixes, err := ex.updateSecurityFixes(fixes, repositories)
@@ -284,13 +286,23 @@ func setupUsage() {
 	}
 }
 
+func isFlagPassed(name string) bool {
+    found := false
+    flag.Visit(func(f *flag.Flag) {
+        if f.Name == name {
+            found = true
+        }
+    })
+    return found
+}
+
 func main() {
 	config := getConfig()
 	var alerts = flag.Bool("alerts", config.alerts, "Boolean to enable/disable alerts (GITHUB_VUL_ALERTS)")
 	var dry = flag.Bool("dry", config.dry, "Dry run (GITHUB_VUL_DRY)")
-	var fixes = flag.Bool("fixes", config.fixes, "Boolean to enable/disable automated (GITHUB_VUL_FIXES)")
+	var fixes = flag.Bool("fixes", config.fixes, "[Optional] Boolean to enable/disable automated (GITHUB_VUL_FIXES)")
 	var org = flag.String("org", config.org, "GitHub org (GITHUB_VUL_ORG)")
-	var repo = flag.String("repo", config.repo, "Optional - Specify a repository")
+	var repo = flag.String("repo", config.repo, "[Optional] Specify a repository")
 	var token = flag.String("token", config.token, "GitHub API token (GITHUB_VUL_TOKEN)")
 	setupUsage()
 	flag.Parse()
@@ -298,7 +310,8 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	ex := NewExecutor(*token, *dry)
+	var skipFixes = !isFlagPassed("fixes")
+	ex := NewExecutor(*token, *dry, skipFixes)
 	err := Run(*org, *alerts, *fixes, *repo, *ex)
 	if err != nil {
 		crash(err.Error())
