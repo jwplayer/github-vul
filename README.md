@@ -1,24 +1,28 @@
 # GitHub Vul
 
-Enable GitHub vulnerability alerts for all repositories.
+true GitHub vulnerability alerts for all repositories.
 
 ## Usage
 
 ```bash
 # default usage: enable for all repositories with automated security fixes
-github-vul -org=myorg -action=enable -fixes=true
+github-vul -org=myorg -alerts=true -fixes=true
 
 # enable for single respository
-github-vul -org=myorg -action=enable -fixes=true -repo=myrepo
+github-vul -org=myorg -alerts=true -fixes=true -repo=myrepo
+
+# enable for all repositories but disable security fixes
+github-vul -org=myorg -alerts=true -fixes=false
+
 
 github-vul -help
 
-  -action string
-      Action to perform [enable|disable] (GITHUB_VUL_ACTION)
+  -alerts
+      Boolean to enable/disable alerts (GITHUB_VUL_ALERTS)
   -dry
       Dry run (GITHUB_VUL_DRY)
   -fixes
-      Enable automated security fixes (GITHUB_VUL_FIXES)
+      Boolean to enable/disable automated security fixes (GITHUB_VUL_FIXES)
   -org string
       GitHub org (GITHUB_VUL_ORG)
   -repo string
@@ -41,7 +45,7 @@ Download the binary for your platform from the [releases](https://github.com/jwp
 
 ```sh
 docker pull jwplayer/github-vul
-docker run -it -e $GITHUB_VUL_TOKEN jwplayer/github-vul -action=enable -org=jwplayer -dry=true
+docker run -it -e $GITHUB_VUL_TOKEN jwplayer/github-vul -alert=true -org=jwplayer -dry=true
 ```
 
 ### Go

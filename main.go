@@ -103,7 +103,7 @@ func (ex *Executor) listRepositories(org string) ([]repository, error) {
 }
 
 func (ex *Executor) checkEnabled(repo repository) (bool, error) {
-	// https://developer.github.com/v3/repos/#enable-vulnerability-alerts
+	// https://developer.github.com/v3/repos/#true-vulnerability-alerts
 	res, err := ex.makeRequest("GET", "repos/"+repo.Owner.Login+"/"+repo.Name+"/vulnerability-alerts", "application/vnd.github.dorian-preview+json")
 
 	switch res.StatusCode {
@@ -116,18 +116,15 @@ func (ex *Executor) checkEnabled(repo repository) (bool, error) {
 	}
 }
 
-func (ex *Executor) updateVulnerabilityAlerts(action string, repositories []repository) (int, error) {
+func (ex *Executor) updateVulnerabilityAlerts(alerts bool, repositories []repository) (int, error) {
 	numUpdated := 0
 
 	var method string
 
-	switch action {
-	case "enable":
+	if alerts {
 		method = "PUT"
-	case "disable":
+	} else {
 		method = "DELETE"
-	default:
-		return 0, errors.New("action must be of value 'enable' or 'disable'")
 	}
 
 	for _, repo := range repositories {
@@ -137,8 +134,9 @@ func (ex *Executor) updateVulnerabilityAlerts(action string, repositories []repo
 		}
 
 		isEnabled, err := ex.checkEnabled(repo)
-		performAction := (!isEnabled && (action == "enable")) || (isEnabled && (action == "disable"))
-		if !performAction {
+		performUpdate := (!isEnabled && alerts) || (isEnabled && !alerts)
+		if !performUpdate {
+			fmt.Printf("skipping repository %s\n", repo.Name)
 			continue
 		}
 
@@ -193,15 +191,16 @@ func (ex *Executor) updateSecurityFixes(fixes bool, repositories []repository) (
 }
 
 func getConfig() struct {
-	token, org, action string
-	fixes, dry                bool
+	alerts, dry, fixes bool
+	org, token, repo   string
 } {
 	var config struct {
-		token  string
-		org    string
-		action string
-		fixes  bool
+		alerts bool
 		dry    bool
+		fixes  bool
+		org    string
+		token  string
+		repo   string
 	}
 
 	for _, s := range []string{"GITHUB_VUL_TOKEN", "GITHUB_TOKEN"} {
@@ -214,8 +213,13 @@ func getConfig() struct {
 		config.org = os.Getenv("GITHUB_VUL_ORG")
 	}
 
-	if config.action == "" {
-		config.action = os.Getenv("GITHUB_VUL_ACTION")
+	envAlerts := os.Getenv("GITHUB_VUL_ALERTS")
+
+	if envAlerts != "" {
+		r, err := strconv.ParseBool(envAlerts)
+		if err == nil {
+			config.alerts = r
+		}
 	}
 
 	envDry := os.Getenv("GITHUB_VUL_DRY")
@@ -240,12 +244,10 @@ func getConfig() struct {
 }
 
 // Run finds all org repos and ensures vulnerability alerts are turned on
-func Run(org string, action string, fixes bool, repo string, ex Executor) error {
+func Run(org string, alerts bool, fixes bool, repo string, ex Executor) error {
 	switch {
 	case org == "":
 		return errors.New("missing org")
-	case action == "":
-		return errors.New("missing action")
 	}
 
 	var err error
@@ -268,19 +270,21 @@ func Run(org string, action string, fixes bool, repo string, ex Executor) error 
 		}
 	}
 
-	numAlerts, err := ex.updateVulnerabilityAlerts(action, repositories)
+	numAlerts, err := ex.updateVulnerabilityAlerts(alerts, repositories)
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf("updated alerts for %d repositories\n", numAlerts)
 
-	numFixes, err := ex.updateSecurityFixes(fixes, repositories)
-	if err != nil {
-		return err
-	}
+	if alerts {
+		numFixes, err := ex.updateSecurityFixes(fixes, repositories)
+		if err != nil {
+			return err
+		}
 
-	fmt.Printf("updated security fixes for %d repositories\n", numFixes)
+		fmt.Printf("updated security fixes for %d repositories\n", numFixes)
+	}
 
 	return nil
 }
@@ -294,11 +298,11 @@ func setupUsage() {
 
 func main() {
 	config := getConfig()
-	var action = flag.String("action", config.action, "Action to perform [enable|disable] (GITHUB_VUL_ACTION)")
+	var alerts = flag.Bool("alerts", config.alerts, "Boolean to enable/disable alerts (GITHUB_VUL_ALERTS)")
 	var dry = flag.Bool("dry", config.dry, "Dry run (GITHUB_VUL_DRY)")
-	var fixes = flag.Bool("fixes", config.fixes, "Enable automated security fixes (GITHUB_VUL_FIXES)")
+	var fixes = flag.Bool("fixes", config.fixes, "Boolean to enable/disable automated (GITHUB_VUL_FIXES)")
 	var org = flag.String("org", config.org, "GitHub org (GITHUB_VUL_ORG)")
-	var repo = flag.String("repo", config.action, "Optional - Specify a repository")
+	var repo = flag.String("repo", config.repo, "Optional - Specify a repository")
 	var token = flag.String("token", config.token, "GitHub API token (GITHUB_VUL_TOKEN)")
 	setupUsage()
 	flag.Parse()
@@ -307,7 +311,7 @@ func main() {
 		os.Exit(1)
 	}
 	ex := NewExecutor(*token, *dry)
-	err := Run(*org, *action, *fixes, *repo, *ex)
+	err := Run(*org, *alerts, *fixes, *repo, *ex)
 	if err != nil {
 		crash(err.Error())
 	}

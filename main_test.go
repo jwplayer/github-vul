@@ -47,7 +47,7 @@ func getResponse(responses []mockHTTPResponse, method string, url string) mockHT
 func TestConfig(t *testing.T) {
 	os.Setenv("GITHUB_TOKEN", "xyzzy")
 	os.Setenv("GITHUB_VUL_ORG", "foo")
-	os.Setenv("GITHUB_VUL_ACTION", "enable")
+	os.Setenv("GITHUB_VUL_ALERTS", "true")
 	os.Setenv("GITHUB_VUL_DRY", "true")
 
 	config := getConfig()
@@ -56,31 +56,27 @@ func TestConfig(t *testing.T) {
 		t.Errorf("Expected getConfig() to set org to foo")
 	}
 
-	if config.action != "enable" {
-		t.Errorf("Expected getConfig() to set action to enable")
+	if !config.alerts {
+		t.Errorf("Expected getConfig() to set alerts to true")
 	}
 
 	if config.token != "xyzzy" {
 		t.Errorf("Expected getConfig() to set token to xyzzy")
 	}
 
-	if config.action != "enable" {
-		t.Errorf("Expected getConfig() to set action to enable")
-	}
-
-	if config.dry != true {
+	if !config.dry {
 		t.Errorf("Expected getConfig() to set dry to true")
 	}
 
 	os.Unsetenv("GITHUB_TOKEN")
-	os.Unsetenv("GITHUB_VUL_ACTION")
+	os.Unsetenv("GITHUB_VUL_ALERTS")
 	os.Unsetenv("GITHUB_VUL_DRY")
 
 	os.Setenv("GITHUB_VUL_ORG", "abc")
-	os.Setenv("GITHUB_VUL_ACTION", "enable")
+	os.Setenv("GITHUB_VUL_ALERTS", "true")
 	os.Setenv("GITHUB_VUL_TOKEN", "token")
 	defer os.Unsetenv("GITHUB_VUL_ORG")
-	defer os.Unsetenv("GITHUB_VUL_ACTION")
+	defer os.Unsetenv("GITHUB_VUL_ALERTS")
 	defer os.Unsetenv("GITHUB_VUL_TOKEN")
 
 	config = getConfig()
@@ -93,8 +89,8 @@ func TestConfig(t *testing.T) {
 		t.Errorf("Expected getConfig() to set token to token")
 	}
 
-	if config.action != "enable" {
-		t.Errorf("Expected getConfig() to set action to enable")
+	if config.alerts != true {
+		t.Errorf("Expected getConfig() to set alerts to true")
 	}
 
 	if config.dry != false {
@@ -104,7 +100,7 @@ func TestConfig(t *testing.T) {
 
 func TestUpdateVulnerabilityAlerts(t *testing.T) {
 	ex := NewExecutor("token", false)
-	n, err := ex.updateVulnerabilityAlerts("enable", []repository{
+	n, err := ex.updateVulnerabilityAlerts(true, []repository{
 		repository{
 			Name: "repo",
 			Owner: owner{
@@ -144,7 +140,7 @@ func TestUpdateSecurityFixes(t *testing.T) {
 
 func TestDryRun(t *testing.T) {
 	ex := NewExecutor("token", true)
-	n, _ := ex.updateVulnerabilityAlerts("enable", []repository{
+	n, _ := ex.updateVulnerabilityAlerts(true, []repository{
 		repository{
 			Name: "repo",
 		},
@@ -365,12 +361,12 @@ func TestRun(t *testing.T) {
 	ex.client = client
 	ex.http = true
 
-	err := Run("org", "enable", true, "", *ex)
+	err := Run("org", true, true, "", *ex)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
 
-	err = Run("org", "enable", true, "repo1", *ex)
+	err = Run("org", true, true, "repo1", *ex)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -388,7 +384,7 @@ func TestRun(t *testing.T) {
 		}
 	}
 
-	err = Run("", "", true, "", *ex)
+	err = Run("", true, true, "", *ex)
 
 	if err == nil {
 		t.Errorf("Expected error on missing org")
