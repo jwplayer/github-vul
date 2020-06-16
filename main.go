@@ -7,6 +7,7 @@ A CLI to enable vulnerability alerts and automated security fixes for github rep
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -30,10 +31,12 @@ type owner struct {
 	Login string `json:"login"`
 }
 
+// https://developer.github.com/v3/repos/#get-a-repository
 type repository struct {
-	Archived bool `json:"archived"`
-	Name     string `json:"name"`
-	Owner    owner  `json:"owner"`
+	Archived      bool   `json:"archived"`
+	Name          string `json:"name"`
+	Owner         owner  `json:"owner"`
+	DefaultBranch string `json:"default_branch"`
 }
 
 // Executor provides runtime configuration and facilities
@@ -57,13 +60,13 @@ func NewExecutor(token string, dry bool, skipFixes bool) *Executor {
 	return &ex
 }
 
-func (ex *Executor) makeRequest(method string, url string, acceptHeaders ...string) (res *http.Response, err error) {
+func (ex *Executor) makeRequest(method string, url string, jsonStr string, acceptHeaders ...string) (res *http.Response, err error) {
 	protocol := "https"
 	if ex.http {
 		protocol = "http"
 	}
 
-	req, err := http.NewRequest(method, protocol+"://api.github.com/"+url, nil)
+	req, err := http.NewRequest(method, protocol+"://api.github.com/"+url, jsonStr)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +85,8 @@ func (ex *Executor) listRepositories(org string) ([]repository, error) {
 	repositories := make([]repository, 0, 1)
 
 	for page, keepGoing := 1, true; keepGoing; page++ {
-		res, err := ex.makeRequest("GET", "orgs/"+org+"/repos?type=all&sort=updated&direction=asc&per_page=100&page="+strconv.Itoa(page))
+		url = "orgs/"+org+"/repos?type=all&sort=updated&direction=asc&per_page=100&page="+strconv.Itoa(page)
+		res, err := ex.makeRequest("GET", url, nil)
 
 		if err != nil {
 			return repositories, fmt.Errorf("failed to get repositories: %w\n", err)
@@ -110,6 +114,43 @@ func (ex *Executor) listRepositories(org string) ([]repository, error) {
 	return repositories, nil
 }
 
+func (ex *Executor) requirePullRequestReviews(repositories []repository) (int, error) {
+	numUpdated := 0
+
+	for _, repo := range repositories {
+		if repo.Archived {
+			fmt.Printf("skipping repository %s: is archived\n", repo.Name)
+			continue
+		}
+
+		if ex.dry {
+			fmt.Printf("dry run\twill update PR protection rules for repository %s\n", repo.Name)
+			continue
+		}
+
+		jsonStr := []byte(`
+{
+  "required_pull_request_reviews": {
+		"required_approving_review_count": 1
+	}
+}`)
+		// https://developer.github.com/v3/repos/branches/#update-branch-protection
+		url := fmt.Sprintf("repos/%s/%s/branches/%s/protection/required_pull_request_reviews", repo.Owner.Login, repo.Name, repo.DefaultBranch)
+
+		_, err := ex.makeRequest("PATCH", url, bytes.NewBuffer(jsonStr), "application/vnd.github.luke-cage-preview+json")
+		if err != nil {
+			return numUpdated, fmt.Errorf("failed to update PR protection rules for repository %s: %w\n", repo.Name, err)
+		}
+
+		fmt.Printf("updated PR protection rules for repository\t%s\n", repo.Name)
+
+		numUpdated++
+	}
+
+	return numUpdated, nil
+}
+
+
 func (ex *Executor) updateVulnerabilityAlerts(alerts bool, repositories []repository) (int, error) {
 	numUpdated := 0
 
@@ -133,7 +174,8 @@ func (ex *Executor) updateVulnerabilityAlerts(alerts bool, repositories []reposi
 		}
 
 		// https://developer.github.com/v3/repos/#enable-vulnerability-alerts
-		_, err := ex.makeRequest(method, "repos/"+repo.Owner.Login+"/"+repo.Name+"/vulnerability-alerts", "application/vnd.github.dorian-preview+json")
+		url := fmt.Sprintf("repos/%s/%s/vulnerability-alerts", repo.Owner.Login, repo.Name)
+		_, err := ex.makeRequest(method, url, nil, "application/vnd.github.dorian-preview+json")
 		if err != nil {
 			return numUpdated, fmt.Errorf("failed to update vulnerability alerts for repo %s: %w\n", repo.Name, err)
 		}
@@ -169,7 +211,9 @@ func (ex *Executor) updateSecurityFixes(fixes bool, repositories []repository) (
 		}
 
 		// https://developer.github.com/v3/repos/#enable-vulnerability-alerts
-		_, err := ex.makeRequest(method, "repos/"+repo.Owner.Login+"/"+repo.Name+"/automated-security-fixes", "application/vnd.github.london-preview+json")
+		url := fmt.Sprintf("repos/%s/%s/automated-security-fixes", repo.Owner.Login, repo.Name)
+
+		_, err := ex.makeRequest(method, url, nil, "application/vnd.github.london-preview+json")
 		if err != nil {
 			return numUpdated, fmt.Errorf("failed to update automated security fixes alerts for repo %s: %w\n", repo.Name, err)
 		}
@@ -282,6 +326,8 @@ func Run(org string, alerts bool, fixes bool, repo string, ex Executor) error {
 		fmt.Printf("updated security fixes for %d repositories\n", numFixes)
 	}
 
+	// requirePullRequestReviews
+
 	return nil
 }
 
@@ -316,8 +362,10 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	var skipFixes = !isFlagPassed("fixes")
-	ex := NewExecutor(*token, *dry, skipFixes)
+	skipAlerts := !isFlagPassed("alerts")
+	skipFixes := !isFlagPassed("fixes")
+	skipPRs := !isFlagPassed("prs")
+	ex := NewExecutor(*token, *dry, skipAlerts, skipFixes, skipPRs)
 	err := Run(*org, *alerts, *fixes, *repo, *ex)
 	if err != nil {
 		crash(err.Error())
